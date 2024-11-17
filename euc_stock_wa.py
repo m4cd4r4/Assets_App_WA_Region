@@ -39,18 +39,25 @@ def run_inventory_script():
         tk.messagebox.showerror("Error", "The script 'inventory-levels_4.2v2.py' does not exist in the directory.")
 
 def run_build_room_inventory_script():
-    script_path = script_directory / "inventory-levels_BRv2.py"
+    script_path = script_directory / "inventory-levels_BRv2.2.py"
     if script_path.exists():
         os.system(f"python {script_path}")
     else:
-        tk.messagebox.showerror("Error", "The script 'inventory-levels_BRv2.py' does not exist in the directory.")
+        tk.messagebox.showerror("Error", "The script 'inventory-levels_BRv2.2.py' does not exist in the directory.")
+
+def run_darwin_inventory_script():
+    script_path = script_directory / "inventory-levels_darwinv1.py"
+    if script_path.exists():
+        os.system(f"python {script_path}")
+    else:
+        tk.messagebox.showerror("Error", "The script 'inventory-levels_darwinv1.py' does not exist in the directory.")
 
 def run_combined_rooms_inventory_script():
-    script_path = script_directory / "inventory-levels_combinedv1.2.py"
+    script_path = script_directory / "inventory-levels_combinedv1.4.py"
     if script_path.exists():
         os.system(f"python {script_path}")
     else:
-        tk.messagebox.showerror("Error", "The script 'inventory-levels_combinedv1.2.py' does not exist in the directory.")
+        tk.messagebox.showerror("Error", "The script 'inventory-levels_combinedv1.4.py' does not exist in the directory.")
 
 def open_spreadsheet():
     try:
@@ -98,6 +105,7 @@ menu_bar = tk.Menu(root)
 plots_menu = tk.Menu(menu_bar, tearoff=0)
 plots_menu.add_command(label="Basement 4.2 Inventory", command=run_inventory_script)
 plots_menu.add_command(label="Build Room Inventory", command=run_build_room_inventory_script)
+plots_menu.add_command(label="Darwin Inventory", command=run_darwin_inventory_script)
 plots_menu.add_command(label="Combined Inventory", command=run_combined_rooms_inventory_script)
 plots_menu.add_command(label="SANs In Stock", command=view_all_sans_log)
 plots_menu.add_command(label="Open Spreadsheet", command=open_spreadsheet)
@@ -188,16 +196,6 @@ def is_san_unique(san_number):
 def show_san_input():
     dialog = SANInputDialog(root, "Enter SAN Number")
     return dialog.result
-
-def open_spreadsheet():
-    try:
-        if os.name == 'nt':
-            os.startfile(workbook_path)
-        else:
-            opener = "open" if sys.platform == "darwin" else "xdg-open"
-            subprocess.run([opener, workbook_path])
-    except Exception as e:
-        tk.messagebox.showerror("Error", f"Failed to open the spreadsheet: {e}")
 
 frame = ctk.CTkFrame(root)
 frame.pack(padx=3, pady=3, fill='both', expand=True)
