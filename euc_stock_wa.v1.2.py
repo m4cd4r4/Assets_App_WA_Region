@@ -250,35 +250,44 @@ def show_san_input():
 
 frame = ctk.CTkFrame(root)
 frame.pack(padx=3, pady=3, fill='both', expand=True)
-entry_frame = ctk.CTkFrame(frame)
-entry_frame.pack(pady=3)
 
-button_width = 25
-button_1 = ctk.CTkButton(entry_frame, text="Basement 4.2", command=lambda: switch_sheets('original'), width=button_width, font=("Helvetica", 14), corner_radius=3)
+button_width = 120  # Define the width of the buttons
+
+entry_frame = ctk.CTkFrame(frame)
+entry_frame.pack(pady=3, fill='x')  # Fill horizontally for spacing alignment
+
+# Button frame for location buttons
+location_buttons_frame = ctk.CTkFrame(entry_frame)
+location_buttons_frame.pack(side='left', padx=3, pady=3)
+
+button_1 = ctk.CTkButton(location_buttons_frame, text="Basement 4.2", command=lambda: switch_sheets('original'), width=button_width, font=("Helvetica", 14), corner_radius=3)
 button_1.pack(side='left', padx=3)
 
-button_2 = ctk.CTkButton(entry_frame, text="Build Room", command=lambda: switch_sheets('backup'), width=button_width, font=("Helvetica", 14), corner_radius=3)
-button_2.pack(side='left', padx=(3, 50))
+button_2 = ctk.CTkButton(location_buttons_frame, text="Build Room", command=lambda: switch_sheets('backup'), width=button_width, font=("Helvetica", 14), corner_radius=3)
+button_2.pack(side='left', padx=3)
 
-button_l17 = ctk.CTkButton(entry_frame, text="Level 17", command=lambda: switch_sheets('L17'), width=button_width, font=("Helvetica", 14), corner_radius=3)
+button_darwin = ctk.CTkButton(location_buttons_frame, text="Darwin", command=lambda: switch_sheets('Darwin'), width=button_width, font=("Helvetica", 14), corner_radius=3)
+button_darwin.pack(side='left', padx=3)
+
+button_l17 = ctk.CTkButton(location_buttons_frame, text="Level 17", command=lambda: switch_sheets('L17'), width=button_width, font=("Helvetica", 14), corner_radius=3)
 button_l17.pack(side='left', padx=3)
 
-button_b43 = ctk.CTkButton(entry_frame, text="Basement 4.3", command=lambda: switch_sheets('B4.3'), width=button_width, font=("Helvetica", 14), corner_radius=3)
+button_b43 = ctk.CTkButton(location_buttons_frame, text="Basement 4.3", command=lambda: switch_sheets('B4.3'), width=button_width, font=("Helvetica", 14), corner_radius=3)
 button_b43.pack(side='left', padx=3)
 
-button_darwin = ctk.CTkButton(entry_frame, text="Darwin", command=lambda: switch_sheets('Darwin'), width=button_width, font=("Helvetica", 14), corner_radius=3)
-button_darwin.pack(side='left', padx=(3, 50))
+# # Entry and control frame for "+" and "-" buttons
+# control_frame = ctk.CTkFrame(entry_frame)
+# control_frame.pack(side='left', padx=10, pady=3)
 
-button_subtract = ctk.CTkButton(entry_frame, text="-", command=lambda: update_count('subtract'), width=button_width, font=("Helvetica", 14), corner_radius=3)
-button_subtract.pack(side='left', padx=3)
+# button_subtract = ctk.CTkButton(control_frame, text="-", command=lambda: update_count('subtract'), width=button_width, font=("Helvetica", 14), corner_radius=3)
+# button_subtract.pack(side='left', padx=3)
 
-entry_value = tk.Entry(entry_frame, font=("Helvetica", 14), justify='center', width=5, validate="key", validatecommand=vcmd)
-entry_value.pack(side='left', padx=3)
+# entry_value = tk.Entry(control_frame, font=("Helvetica", 14), justify='center', width=5, validate="key", validatecommand=vcmd)
+# entry_value.pack(side='left', padx=3)
 
-button_add = ctk.CTkButton(entry_frame, text="+", command=lambda: update_count('add'), width=button_width, font=("Helvetica", 14), corner_radius=3)
-button_add.pack(side='left', padx=3)
-# xlsx_button = ctk.CTkButton(entry_frame, text=".xlsx", command=open_spreadsheet, width=button_width, font=("Helvetica", 14))
-# xlsx_button.pack(side='left', padx=3)
+# button_add = ctk.CTkButton(control_frame, text="+", command=lambda: update_count('add'), width=button_width, font=("Helvetica", 14), corner_radius=3)
+# button_add.pack(side='left', padx=3)
+
 
 def update_treeview():
     tree.delete(*tree.get_children())
@@ -416,15 +425,63 @@ def update_count(operation):
             update_treeview()
             update_log_view()
 
+        # **Add this line to refocus on the entry field after processing**
+        entry_value.focus_set()
+
+
 
 columns = ("Item", "LastCount", "NewCount")
 tree = ttk.Treeview(frame, columns=columns, show="headings", selectmode='browse', style="Treeview")
 for col in columns:
     tree.heading(col, text=col, anchor='w')
-    tree.column("Item", anchor='w', width=250, stretch=False) # Width of the "Item" column in the treeview. The other columns are default width.
+    tree.column("Item", anchor='w', width=250, stretch=False)  # Width of the "Item" column in the treeview
     tree.column("LastCount", anchor='w', width=175, stretch=False)
 tree.pack(expand=True, fill="both", padx=3, pady=3)
 
+# Frame to hold the controls for the "+" and "-" buttons and the text field
+controls_frame = ctk.CTkFrame(root)
+controls_frame.pack(pady=10, fill="x")  # Positioned between the tree and log view
+
+# Sub-frame to group the buttons and the text field tightly
+entry_controls_frame = ctk.CTkFrame(controls_frame)
+entry_controls_frame.pack(pady=10, anchor="center")  # Center align the sub-frame
+
+# Subtract button on the left
+button_subtract = ctk.CTkButton(
+    entry_controls_frame,
+    text="-",
+    command=lambda: update_count('subtract'),
+    width=50,
+    font=("Helvetica", 14),
+    corner_radius=3
+)
+button_subtract.pack(side="left", padx=5)  # Adjust padding to reduce spacing
+
+# Text field for input, centered between the "+" and "-" buttons
+entry_value = tk.Entry(
+    entry_controls_frame,
+    font=("Helvetica", 14),
+    justify="center",
+    width=10,  # Adjust the width as needed
+    validate="key",
+    validatecommand=vcmd
+)
+entry_value.pack(side="left", padx=5)  # Minimal padding to reduce spacing
+
+# Add button on the right
+button_add = ctk.CTkButton(
+    entry_controls_frame,
+    text="+",
+    command=lambda: update_count('add'),
+    width=50,
+    font=("Helvetica", 14),
+    corner_radius=3
+)
+button_add.pack(side="left", padx=5)  # Adjust padding to reduce spacing
+
+
+
+# Frame to hold the log view at the bottom
 log_view_frame = ctk.CTkFrame(root)
 log_view_frame.pack(side=tk.BOTTOM, fill='both', expand=True, padx=10, pady=10)
 
