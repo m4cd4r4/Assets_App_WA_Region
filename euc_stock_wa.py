@@ -1,6 +1,3 @@
-# Build Room\build_roomv3.6.py
-# Author: Macdara O Murchu
-# 09.05.24
 
 import logging.config
 from pathlib import Path
@@ -209,10 +206,10 @@ button_1.pack(side='left', padx=3)
 button_2 = ctk.CTkButton(entry_frame, text="Build Room", command=lambda: switch_sheets('backup'), width=button_width, font=("Helvetica", 14), corner_radius=3)
 button_2.pack(side='left', padx=(3, 50))
 
-button_l17 = ctk.CTkButton(entry_frame, text="L17", command=lambda: switch_sheets('L17'), width=button_width, font=("Helvetica", 14), corner_radius=3)
+button_l17 = ctk.CTkButton(entry_frame, text="Level 17", command=lambda: switch_sheets('L17'), width=button_width, font=("Helvetica", 14), corner_radius=3)
 button_l17.pack(side='left', padx=3)
 
-button_b43 = ctk.CTkButton(entry_frame, text="B4.3", command=lambda: switch_sheets('B4.3'), width=button_width, font=("Helvetica", 14), corner_radius=3)
+button_b43 = ctk.CTkButton(entry_frame, text="Basement 4.3", command=lambda: switch_sheets('B4.3'), width=button_width, font=("Helvetica", 14), corner_radius=3)
 button_b43.pack(side='left', padx=3)
 
 button_darwin = ctk.CTkButton(entry_frame, text="Darwin", command=lambda: switch_sheets('Darwin'), width=button_width, font=("Helvetica", 14), corner_radius=3)
