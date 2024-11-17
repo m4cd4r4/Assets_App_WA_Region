@@ -1,3 +1,6 @@
+# Add Location column to "All_SANs" sheet & "SANs In Stock" drop-down form
+# "All_SANs" sheet now gets location added to column D (4.2, BR, Darwin)
+
 import logging.config
 from pathlib import Path
 from tkinter import Menu
@@ -112,29 +115,34 @@ def update_all_sans_location():
 
 def view_all_sans_log():
     """
-    Displays the updated All_SANs data in a Treeview widget with columns
-    'SAN Number', 'Item', 'Time', and 'Location'.
-    Includes a search box to filter SAN numbers dynamically.
+    Displays the updated All_SANs data in a Treeview widget with a slider to 
+    navigate weekly stock levels over time.
     """
     # Update the 'Location' column in the 'All_SANs' sheet
     update_all_sans_location()
 
     log_window = tk.Toplevel(root)
-    log_window.title("SANs In Stock")
+    log_window.title("SANs Over Time")
     log_window.geometry("800x800")
 
-    # Search box frame
-    search_frame = tk.Frame(log_window)
-    search_frame.pack(fill="x", padx=10, pady=5)
+    # Slider frame for time navigation
+    slider_frame = tk.Frame(log_window)
+    slider_frame.pack(fill="x", padx=10, pady=5)
 
-    tk.Label(search_frame, text="Search:").pack(side="left", padx=5)
-    search_var = tk.StringVar()
+    # Label for the slider
+    slider_label = tk.Label(slider_frame, text="Weeks Ago:")
+    slider_label.pack(side="left", padx=5)
 
-    search_entry = ttk.Entry(search_frame, textvariable=search_var)
-    search_entry.pack(side="left", fill="x", expand=True, padx=5)
+    # Create a slider (ttk.Scale)
+    week_slider = ttk.Scale(slider_frame, from_=0, to=12, orient="horizontal", length=300)
+    week_slider.pack(side="left", padx=10)
+    week_slider.set(0)  # Default position to current week
 
-    # Treeview and scrollbar
-    columns = ("SAN Number", "Item", "Time", "Location")
+    week_display = tk.Label(slider_frame, text="Current Week")
+    week_display.pack(side="left", padx=5)
+
+    # Treeview for displaying stock data
+    columns = ("Date", "SAN Number", "Item", "Volume")
     log_tree = ttk.Treeview(log_window, columns=columns, show="headings")
     for col in columns:
         log_tree.heading(col, text=col)
@@ -145,31 +153,197 @@ def view_all_sans_log():
     scrollbar.pack(side="right", fill="y")
     log_tree.configure(yscrollcommand=scrollbar.set)
 
-    # Load data from the "All_SANs" sheet
-    def load_data(filter_text=""):
+    # Load and process data from the "All_SANs" sheet
+def load_week_data(weeks_ago=0):
+    """
+    Populate Treeview with data for the selected week offset.
+    """
+    log_tree.delete(*log_tree.get_children())  # Clear current data
+
+    if 'All_SANs' in workbook.sheetnames:
+        all_sans_sheet = workbook['All_SANs']
+
+        # Create a DataFrame for easier date filtering
+        data = [
+            {
+                "Date": row[2],
+                "SAN Number": row[0],
+                "Item": row[1],
+                "Volume": 1,  # Volume handling logic can be added here
+            }
+            for row in all_sans_sheet.iter_rows(min_row=2, values_only=True)
+            if row[2]  # Ensure the timestamp column is not empty
+        ]
+        df = pd.DataFrame(data)
+
+        # Debug: Print loaded data
+        print("Loaded DataFrame:", df)
+
+        # Convert date strings to datetime for filtering
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+        print("Dates Converted to Datetime:", df["Date"])
+
+        current_date = pd.Timestamp.now()
+        print("Current Date:", current_date)
+
+        # Calculate the start and end of the week to filter
+        end_of_week = current_date - pd.Timedelta(weeks=weeks_ago * 7)
+        start_of_week = end_of_week - pd.Timedelta(days=6)
+
+        print(f"Filtering dates from {start_of_week} to {end_of_week}")
+
+        # Filter data for the selected week
+        weekly_data = df[(df["Date"] >= start_of_week) & (df["Date"] <= end_of_week)]
+
+        # Debug: Print weekly data
+        print("Filtered Weekly Data:", weekly_data)
+
+        # Populate the Treeview with filtered data
+        for _, row in weekly_data.iterrows():
+            log_tree.insert('', 'end', values=(row["Date"], row["SAN Number"], row["Item"], row["Volume"]))
+
+        # Update the week display label
+        week_display.config(
+            text=f"Week: {start_of_week.strftime('%Y-%m-%d')} to {end_of_week.strftime('%Y-%m-%d')}"
+        )
+    else:
+        tk.messagebox.showinfo("Info", "'All_SANs' sheet not found or empty.", parent=log_window)
+
+
+
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import pandas as pd  # For date filtering
+
+def plot_inventory_with_slider():
+    """
+    Displays a dynamic diagram with a slider to navigate weekly inventory levels
+    for selected inventories (BR, 4.2, Darwin, All).
+    """
+    # Create a new window
+    plot_window = tk.Toplevel(root)
+    plot_window.title("Inventory Levels Over Time")
+    plot_window.geometry("1000x800")
+
+    # Slider frame
+    slider_frame = tk.Frame(plot_window)
+    slider_frame.pack(fill="x", padx=10, pady=5)
+
+    # Label for slider
+    slider_label = tk.Label(slider_frame, text="Weeks Ago:")
+    slider_label.pack(side="left", padx=5)
+
+    # Create slider
+    week_slider = ttk.Scale(slider_frame, from_=0, to=12, orient="horizontal", length=300)
+    week_slider.pack(side="left", padx=10)
+    week_slider.set(0)  # Default to current week
+
+    week_display = tk.Label(slider_frame, text="Current Week")
+    week_display.pack(side="left", padx=5)
+
+    # Dropdown to select inventory
+    inventory_label = tk.Label(slider_frame, text="Select Inventory:")
+    inventory_label.pack(side="left", padx=10)
+
+    inventory_var = tk.StringVar(value="BR")  # Default to 'BR'
+    inventory_dropdown = ttk.Combobox(
+        slider_frame, textvariable=inventory_var, values=["BR", "4.2", "Darwin", "All"]
+    )
+    inventory_dropdown.pack(side="left", padx=5)
+
+    # Frame for Matplotlib plot
+    plot_frame = tk.Frame(plot_window)
+    plot_frame.pack(fill="both", expand=True)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    canvas = FigureCanvasTkAgg(fig, master=plot_frame)
+    canvas.get_tk_widget().pack(fill="both", expand=True)
+
+    def load_plot_data(inventory, weeks_ago):
         """
-        Populates the Treeview with data, filtering by filter_text.
+        Load and plot inventory data based on selected inventory and week offset.
         """
-        log_tree.delete(*log_tree.get_children())  # Clear current data
-        if 'All_SANs' in workbook.sheetnames:
-            all_sans_sheet = workbook['All_SANs']
-            for row in all_sans_sheet.iter_rows(min_row=2, values_only=True):
-                san_number, item, timestamp, location = row
-                # Filter by the search text
-                if filter_text.lower() in str(san_number).lower():
-                    log_tree.insert('', 'end', values=(san_number, item, timestamp, location))
+        ax.clear()
+
+        # Collect data for selected inventory
+        data = []
+        if inventory == "All":
+            # Combine data from all timestamp sheets
+            for sheet_name in ["BR_Timestamps", "4.2_Timestamps", "Darwin_Timestamps"]:
+                if sheet_name in workbook.sheetnames:
+                    sheet_data = [
+                        {"Date": row[0], "Item": row[1], "Volume": row[2]}
+                        for row in workbook[sheet_name].iter_rows(min_row=2, values_only=True)
+                        if row[0]
+                    ]
+                    data.extend(sheet_data)
         else:
-            tk.messagebox.showinfo("Info", "'All_SANs' sheet not found or empty.", parent=log_window)
+            # Load data from the selected sheet
+            sheet_name = f"{inventory}_Timestamps"
+            if sheet_name not in workbook.sheetnames:
+                ax.set_title(f"No data available for {inventory}")
+                canvas.draw()
+                return
 
-    # Trigger search on text change
-    def on_search(*args):
-        filter_text = search_var.get()
-        load_data(filter_text)
+            data = [
+                {"Date": row[0], "Item": row[1], "Volume": row[2]}
+                for row in workbook[sheet_name].iter_rows(min_row=2, values_only=True)
+                if row[0]
+            ]
 
-    search_var.trace("w", on_search)  # Bind dynamic updates to search
+        if not data:
+            ax.set_title(f"No data available for {inventory}")
+            canvas.draw()
+            return
 
-    # Load initial data
-    load_data()
+        # Convert data to DataFrame
+        df = pd.DataFrame(data)
+
+        # Convert date strings to datetime for filtering
+        df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+        current_date = pd.Timestamp.now()
+
+        # Calculate the start and end of the week
+        end_of_week = current_date - pd.Timedelta(weeks=weeks_ago * 7)
+        start_of_week = end_of_week - pd.Timedelta(days=6)
+
+        # Filter data for the selected week
+        weekly_data = df[(df["Date"] >= start_of_week) & (df["Date"] <= end_of_week)]
+
+        if weekly_data.empty:
+            ax.set_title(f"No data for {inventory} during {start_of_week.strftime('%Y-%m-%d')} to {end_of_week.strftime('%Y-%m-%d')}")
+            canvas.draw()
+            return
+
+        # Aggregate inventory levels by item
+        inventory_summary = weekly_data.groupby("Item")["Volume"].sum()
+
+
+        # Plot the data
+        inventory_summary.plot(kind="bar", ax=ax)
+        ax.set_title(f"Inventory Levels for {inventory} ({start_of_week.strftime('%Y-%m-%d')} to {end_of_week.strftime('%Y-%m-%d')})")
+        ax.set_xlabel("Item")
+        ax.set_ylabel("Volume")
+        ax.grid(True)
+
+        # Redraw the canvas
+        canvas.draw()
+
+    def on_slider_or_inventory_change(*args):
+        """
+        Callback for slider or inventory dropdown changes.
+        """
+        weeks_ago = int(week_slider.get())
+        inventory = inventory_var.get()
+        week_display.config(text=f"Week Offset: {weeks_ago}")
+        load_plot_data(inventory, weeks_ago)
+
+    # Bind events for the slider and dropdown
+    week_slider.bind("<Motion>", on_slider_or_inventory_change)
+    inventory_dropdown.bind("<<ComboboxSelected>>", on_slider_or_inventory_change)
+
+    # Load the initial plot
+    load_plot_data(inventory_var.get(), 0)
 
 
 root = ctk.CTk()
@@ -178,13 +352,14 @@ root.geometry("675x850")
 
 menu_bar = tk.Menu(root)
 plots_menu = tk.Menu(menu_bar, tearoff=0)
+plots_menu.add_command(label="Dynamic Inventory Diagram", command=plot_inventory_with_slider)
 plots_menu.add_command(label="Basement 4.2 Inventory", command=run_inventory_script)
 plots_menu.add_command(label="Build Room Inventory", command=run_build_room_inventory_script)
 plots_menu.add_command(label="Darwin Inventory", command=run_darwin_inventory_script)
 plots_menu.add_command(label="Combined Inventory", command=run_combined_rooms_inventory_script)
 plots_menu.add_command(label="SANs In Stock", command=view_all_sans_log)
+plots_menu.add_command(label="Dynamic Inventory Diagram", command=plot_inventory_with_slider)  # New menu item
 plots_menu.add_command(label="Open Spreadsheet", command=open_spreadsheet)
-# plots_menu.add_command(label="Headsets In Stock", command=view_headsets_log)
 menu_bar.add_cascade(label="Data", menu=plots_menu)
 root.config(menu=menu_bar)
 
@@ -311,62 +486,15 @@ buttons = [
     ("Basement 4.3", lambda: switch_sheets('B4.3')),
 ]
 
-# Variable to store the current selected button
-selected_button = None
-
-def highlight_button(selected, buttons):
-    """
-    Highlights the selected button by making its label bold and resets others.
-    
-    :param selected: The selected button widget.
-    :param buttons: List of all button widgets.
-    """
-    global selected_button
-    for btn in buttons:
-        if btn == selected:
-            btn.configure(font=("Helvetica", 14, "bold"))  # Set font to bold
-        else:
-            btn.configure(font=("Helvetica", 14, "normal"))  # Reset to normal
-    selected_button = selected
-
-# Create the buttons and store references in a list
-button_widgets = []
-
-# Variable to store the currently selected button
-selected_button = None
-
-def highlight_button(selected, buttons):
-    """
-    Highlights the selected button by making its label bold and resets others.
-    
-    :param selected: The selected button widget.
-    :param buttons: List of all button widgets.
-    """
-    global selected_button
-    for btn in buttons:
-        if btn == selected:
-            btn.configure(font=("Helvetica", 14, "bold"))  # Set font to bold
-        else:
-            btn.configure(font=("Helvetica", 14, "normal"))  # Reset to normal
-    selected_button = selected
-
-# Create the buttons and store references in a list
-button_widgets = []
-
 for col, (text, command) in enumerate(buttons):
-    # Define the button outside the lambda
-    btn = ctk.CTkButton(
-        location_buttons_frame,
-        text=text,
-        width=button_width,
-        font=("Helvetica", 14, "normal"),  # Default font is normal
+    ctk.CTkButton(
+        location_buttons_frame, 
+        text=text, 
+        command=command, 
+        width=button_width, 
+        font=("Helvetica", 14), 
         corner_radius=3
-    )
-    btn.configure(
-        command=lambda b=btn, cmd=command: [highlight_button(b, button_widgets), root.after(1, cmd)]
-    )
-    btn.grid(row=0, column=col, padx=5, pady=5, sticky="ew")
-    button_widgets.append(btn)
+    ).grid(row=0, column=col, padx=5, pady=5, sticky="ew")
 
 
 # # Entry and control frame for "+" and "-" buttons
