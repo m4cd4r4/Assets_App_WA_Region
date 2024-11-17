@@ -226,6 +226,43 @@ button_add.pack(side='left', padx=3)
 # xlsx_button = ctk.CTkButton(entry_frame, text=".xlsx", command=open_spreadsheet, width=button_width, font=("Helvetica", 14))
 # xlsx_button.pack(side='left', padx=3)
 
+def toggle_stock_mode():
+    # Clear all buttons in the entry_frame
+    for widget in entry_frame.winfo_children():
+        widget.destroy()
+
+    # Add buttons based on the current mode
+    if stock_mode_switch.get() == "New":
+        ctk.CTkButton(entry_frame, text="Basement 4.2", command=lambda: switch_sheets('original'), width=button_width, font=("Helvetica", 14), corner_radius=3).pack(side='left', padx=3)
+        ctk.CTkButton(entry_frame, text="Build Room", command=lambda: switch_sheets('backup'), width=button_width, font=("Helvetica", 14), corner_radius=3).pack(side='left', padx=(3, 50))
+        ctk.CTkButton(entry_frame, text="Darwin", command=lambda: switch_sheets('Darwin'), width=button_width, font=("Helvetica", 14), corner_radius=3).pack(side='left', padx=3)
+    else:
+        ctk.CTkButton(entry_frame, text="Level 17", command=lambda: switch_sheets('L17'), width=button_width, font=("Helvetica", 14), corner_radius=3).pack(side='left', padx=3)
+        ctk.CTkButton(entry_frame, text="Basement 4.3", command=lambda: switch_sheets('B4.3'), width=button_width, font=("Helvetica", 14), corner_radius=3).pack(side='left', padx=3)
+
+    # Add the text field and add/subtract buttons (common to both views)
+    tk.Entry(entry_frame, font=("Helvetica", 14), justify='center', width=5, validate="key", validatecommand=vcmd).pack(side='left', padx=3)
+    ctk.CTkButton(entry_frame, text="+", command=lambda: update_count('add'), width=button_width, font=("Helvetica", 14), corner_radius=3).pack(side='left', padx=3)
+    ctk.CTkButton(entry_frame, text="-", command=lambda: update_count('subtract'), width=button_width, font=("Helvetica", 14), corner_radius=3).pack(side='left', padx=3)
+
+# Create a separate frame for the toggle switch to ensure it remains visible
+switch_frame = ctk.CTkFrame(frame)
+switch_frame.pack(side='top', fill='x', pady=5)
+
+# Create the toggle switch in the switch_frame
+stock_mode_switch = ctk.CTkSwitch(
+    switch_frame, text="New/Used", width=button_width, font=("Helvetica", 14),
+    onvalue="New", offvalue="Used", command=toggle_stock_mode
+)
+stock_mode_switch.select()  # Default to "New"
+stock_mode_switch.pack(side='right', padx=10)
+
+# Initialize the toggle and add buttons for the "New" stock mode
+toggle_stock_mode()
+
+
+
+
 def update_treeview():
     tree.delete(*tree.get_children())
     workbook = load_workbook(workbook_path)

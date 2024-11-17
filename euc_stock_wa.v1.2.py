@@ -1,3 +1,5 @@
+# Add Location column to "All_SANs" sheet & "SANs In Stock" drop-down form
+# "All_SANs" sheet now gets location added to column D (4.2, BR, Darwin)
 
 import logging.config
 from pathlib import Path
@@ -67,13 +69,63 @@ def open_spreadsheet():
         tk.messagebox.showerror("Error", f"Failed to open the spreadsheet: {e}")
 
 
+def update_all_sans_location():
+    """
+    Updates the 'Location' column in the 'All_SANs' sheet based on the presence of SANs
+    in specific timestamp sheets.
+    """
+    # Ensure the 'All_SANs' sheet exists
+    if 'All_SANs' not in workbook.sheetnames:
+        tk.messagebox.showerror("Error", "'All_SANs' sheet not found in the workbook.")
+        return
+
+    all_sans_sheet = workbook['All_SANs']
+
+    # Ensure the Location column (D) has a header
+    if all_sans_sheet.max_column < 4:
+        all_sans_sheet.cell(row=1, column=4, value="Location")
+
+    # Mapping of sheets to short locations
+    location_mapping = {
+        '4.2_Timestamps': '4.2',
+        'BR_Timestamps': 'BR',
+        'Darwin_Timestamps': 'Darwin'
+    }
+
+    # Iterate over rows in All_SANs and update the location
+    for row_idx, row in enumerate(all_sans_sheet.iter_rows(min_row=2, values_only=True), start=2):
+        san_number = row[0]
+        location = None
+
+        # Check each timestamp sheet for the SAN
+        for sheet_name, loc in location_mapping.items():
+            if sheet_name in workbook.sheetnames:
+                timestamp_sheet = workbook[sheet_name]
+                if any(san_number == cell[0] for cell in timestamp_sheet.iter_rows(min_row=2, min_col=1, max_col=1, values_only=True)):
+                    location = loc
+                    break
+
+        # Write the location to the Location column (Column D)
+        all_sans_sheet.cell(row=row_idx, column=4, value=location)
+
+    # Save the workbook after updating
+    workbook.save(workbook_path)
+
+
 def view_all_sans_log():
+    """
+    Displays the updated All_SANs data in a Treeview widget with columns
+    'SAN Number', 'Item', 'Time', and 'Location'.
+    """
+    # First, update the 'Location' column in the 'All_SANs' sheet
+    update_all_sans_location()
+
     log_window = tk.Toplevel(root)
     log_window.title("SANs In Stock")
-    log_window.geometry("600x800")
+    log_window.geometry("800x800")
 
     # Create a Treeview widget to display the log
-    columns = ("SAN Number", "Item", "Timestamp")
+    columns = ("SAN Number", "Item", "Time", "Location")
     log_tree = ttk.Treeview(log_window, columns=columns, show="headings")
     for col in columns:
         log_tree.heading(col, text=col)
@@ -85,13 +137,15 @@ def view_all_sans_log():
     scrollbar.pack(side="right", fill="y")
     log_tree.configure(yscrollcommand=scrollbar.set)
 
-    # Load and display data from the "All SANs" sheet
+    # Load data from the updated "All_SANs" sheet
     if 'All_SANs' in workbook.sheetnames:
         all_sans_sheet = workbook['All_SANs']
         for row in all_sans_sheet.iter_rows(min_row=2, values_only=True):
-            log_tree.insert('', 'end', values=row)
+            # Reorder the row to match Treeview columns (SAN Number, Item, Time, Location)
+            san_number, item, timestamp, location = row
+            log_tree.insert('', 'end', values=(san_number, item, timestamp, location))
     else:
-        tk.messagebox.showinfo("Info", "All_SANs log is empty.", parent=log_window)
+        tk.messagebox.showinfo("Info", "'All_SANs' sheet not found or empty.", parent=log_window)
 
 
 root = ctk.CTk()
@@ -287,6 +341,10 @@ def update_log_view():
 
 
 def update_count(operation):
+    """
+    Updates the inventory count and handles SAN addition/removal, including logging
+    and updating the location in the 'All_SANs' sheet.
+    """
     selected_item = tree.item(tree.focus())['values'][0] if tree.focus() else None
     if selected_item:
         input_value = entry_value.get()
@@ -307,9 +365,22 @@ def update_count(operation):
                     # Ensure SAN number has the 'SAN' prefix
                     san_number = "SAN" + san_number if not san_number.startswith("SAN") else san_number
                     
+                    # Determine the location of the SAN based on the current sheet
+                    location_mapping = {
+                        '4.2_Timestamps': '4.2',
+                        'BR_Timestamps': 'BR',
+                        'Darwin_Timestamps': 'Darwin'
+                    }
+                    current_location = None
+                    for sheet_name, loc in location_mapping.items():
+                        if current_sheets[1] == sheet_name:
+                            current_location = loc
+                            break
+
                     if operation == 'add':
                         if is_san_unique(san_number):
-                            all_sans_sheet.append([san_number, selected_item, datetime.now().strftime("%Y-%m-%d %H:%M:%S")])
+                            # Append the SAN, Item, Timestamp, and Location to the "All_SANs" sheet
+                            all_sans_sheet.append([san_number, selected_item, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), current_location])
                             # Log each SAN unique number immediately
                             log_change(selected_item, operation, san_number, timestamp_sheet, volume=1)
                             workbook.save(workbook_path)
@@ -328,7 +399,6 @@ def update_count(operation):
                         else:  # Executed if the loop completes without breaking (SAN not found or doesn't match item)
                             tk.messagebox.showerror("Error", f"SAN number {san_number} does not match the selected item.", parent=root)
 
-
             for row in item_sheet.iter_rows(min_row=2):
                 if row[0].value == selected_item:
                     row[1].value = row[2].value or 0  # Update LastCount to the current NewCount
@@ -345,6 +415,7 @@ def update_count(operation):
             workbook.save(workbook_path)
             update_treeview()
             update_log_view()
+
 
 columns = ("Item", "LastCount", "NewCount")
 tree = ttk.Treeview(frame, columns=columns, show="headings", selectmode='browse', style="Treeview")
