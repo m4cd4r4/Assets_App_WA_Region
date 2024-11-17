@@ -200,7 +200,6 @@ style = ttk.Style()
 style.configure("Treeview", font=('Helvetica', 12,))
 
 vcmd = (root.register(lambda P: P.isdigit() or P == ""), '%P')
-
 class SANInputDialog(tk.Toplevel):
     def __init__(self, parent, title=None):
         super().__init__(parent)
@@ -210,18 +209,34 @@ class SANInputDialog(tk.Toplevel):
         self.result = None
         self.create_widgets()
         self.grab_set()
+        # Center the dialog window on the parent
         self.geometry(f"+{parent.winfo_rootx() + parent.winfo_width() // 2 - 100}+{parent.winfo_rooty() + parent.winfo_height() // 2 - 50}")
+        self.after(10, self.focus_entry)  # Ensure the entry field gets focus
         self.wait_window(self)
 
     def create_widgets(self):
+        # Input field
         self.entry = ttk.Entry(self, validate="key", validatecommand=vcmd)
         self.entry.pack(padx=5, pady=5)
+        self.entry.bind("<Return>", lambda _: self.on_submit())  # Bind Enter key to submit action
+
+        # Buttons frame
         button_frame = tk.Frame(self)
         button_frame.pack(pady=5)
+
+        # Submit button
         submit_button = ttk.Button(button_frame, text="Submit", command=self.on_submit)
         submit_button.pack(side='left', padx=5)
+
+        # Cancel button
         cancel_button = ttk.Button(button_frame, text="Cancel", command=self.on_cancel)
         cancel_button.pack(side='left', padx=5)
+
+    def focus_entry(self):
+        """
+        Force the focus to the entry field.
+        """
+        self.entry.focus_force()
 
     def on_submit(self):
         san_input = self.entry.get()
@@ -230,11 +245,14 @@ class SANInputDialog(tk.Toplevel):
             self.destroy()
         else:
             tk.messagebox.showerror("Error", "Please enter a valid SAN number.", parent=self)
-            self.entry.focus_set()
+            self.after(10, self.focus_entry)  # Reapply focus after showing an error
 
     def on_cancel(self):
         self.result = None
         self.destroy()
+
+
+
 
 def is_san_unique(san_number):
     # Adjust the search to account for the 'SAN' prefix properly
@@ -258,22 +276,27 @@ entry_frame.pack(pady=3, fill='x')  # Fill horizontally for spacing alignment
 
 # Button frame for location buttons
 location_buttons_frame = ctk.CTkFrame(entry_frame)
-location_buttons_frame.pack(side='left', padx=3, pady=3)
+location_buttons_frame.pack(fill='x', padx=10, pady=5)  # Expand frame to fill horizontally
 
-button_1 = ctk.CTkButton(location_buttons_frame, text="Basement 4.2", command=lambda: switch_sheets('original'), width=button_width, font=("Helvetica", 14), corner_radius=3)
-button_1.pack(side='left', padx=3)
+# Use grid to align and space buttons evenly
+buttons = [
+    ("Basement 4.2", lambda: switch_sheets('original')),
+    ("Build Room", lambda: switch_sheets('backup')),
+    ("Darwin", lambda: switch_sheets('Darwin')),
+    ("Level 17", lambda: switch_sheets('L17')),
+    ("Basement 4.3", lambda: switch_sheets('B4.3')),
+]
 
-button_2 = ctk.CTkButton(location_buttons_frame, text="Build Room", command=lambda: switch_sheets('backup'), width=button_width, font=("Helvetica", 14), corner_radius=3)
-button_2.pack(side='left', padx=3)
+for col, (text, command) in enumerate(buttons):
+    ctk.CTkButton(
+        location_buttons_frame, 
+        text=text, 
+        command=command, 
+        width=button_width, 
+        font=("Helvetica", 14), 
+        corner_radius=3
+    ).grid(row=0, column=col, padx=5, pady=5, sticky="ew")
 
-button_darwin = ctk.CTkButton(location_buttons_frame, text="Darwin", command=lambda: switch_sheets('Darwin'), width=button_width, font=("Helvetica", 14), corner_radius=3)
-button_darwin.pack(side='left', padx=3)
-
-button_l17 = ctk.CTkButton(location_buttons_frame, text="Level 17", command=lambda: switch_sheets('L17'), width=button_width, font=("Helvetica", 14), corner_radius=3)
-button_l17.pack(side='left', padx=3)
-
-button_b43 = ctk.CTkButton(location_buttons_frame, text="Basement 4.3", command=lambda: switch_sheets('B4.3'), width=button_width, font=("Helvetica", 14), corner_radius=3)
-button_b43.pack(side='left', padx=3)
 
 # # Entry and control frame for "+" and "-" buttons
 # control_frame = ctk.CTkFrame(entry_frame)
@@ -368,9 +391,12 @@ def update_count(operation):
             if san_required:
                 # Loop to input each SAN for SAN-required items
                 while entered_sans_count < input_value:
+                    # Small delay to ensure dialog focus is handled correctly
+                    root.after(50)  # Ensures the UI thread processes events between dialogs
                     san_number = show_san_input()
                     if san_number is None:  # User cancelled the input
                         break  # Keep the already entered SANs
+
                     # Ensure SAN number has the 'SAN' prefix
                     san_number = "SAN" + san_number if not san_number.startswith("SAN") else san_number
                     
