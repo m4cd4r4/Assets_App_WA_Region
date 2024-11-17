@@ -116,15 +116,26 @@ def view_all_sans_log():
     """
     Displays the updated All_SANs data in a Treeview widget with columns
     'SAN Number', 'Item', 'Time', and 'Location'.
+    Includes a search box to filter SAN numbers dynamically.
     """
-    # First, update the 'Location' column in the 'All_SANs' sheet
+    # Update the 'Location' column in the 'All_SANs' sheet
     update_all_sans_location()
 
     log_window = tk.Toplevel(root)
     log_window.title("SANs In Stock")
     log_window.geometry("800x800")
 
-    # Create a Treeview widget to display the log
+    # Search box frame
+    search_frame = tk.Frame(log_window)
+    search_frame.pack(fill="x", padx=10, pady=5)
+
+    tk.Label(search_frame, text="Search:").pack(side="left", padx=5)
+    search_var = tk.StringVar()
+
+    search_entry = ttk.Entry(search_frame, textvariable=search_var)
+    search_entry.pack(side="left", fill="x", expand=True, padx=5)
+
+    # Treeview and scrollbar
     columns = ("SAN Number", "Item", "Time", "Location")
     log_tree = ttk.Treeview(log_window, columns=columns, show="headings")
     for col in columns:
@@ -132,20 +143,35 @@ def view_all_sans_log():
         log_tree.column(col, anchor="w")
     log_tree.pack(expand=True, fill="both", padx=10, pady=10)
 
-    # Scrollbar for the Treeview
     scrollbar = ttk.Scrollbar(log_window, orient="vertical", command=log_tree.yview)
     scrollbar.pack(side="right", fill="y")
     log_tree.configure(yscrollcommand=scrollbar.set)
 
-    # Load data from the updated "All_SANs" sheet
-    if 'All_SANs' in workbook.sheetnames:
-        all_sans_sheet = workbook['All_SANs']
-        for row in all_sans_sheet.iter_rows(min_row=2, values_only=True):
-            # Reorder the row to match Treeview columns (SAN Number, Item, Time, Location)
-            san_number, item, timestamp, location = row
-            log_tree.insert('', 'end', values=(san_number, item, timestamp, location))
-    else:
-        tk.messagebox.showinfo("Info", "'All_SANs' sheet not found or empty.", parent=log_window)
+    # Load data from the "All_SANs" sheet
+    def load_data(filter_text=""):
+        """
+        Populates the Treeview with data, filtering by filter_text.
+        """
+        log_tree.delete(*log_tree.get_children())  # Clear current data
+        if 'All_SANs' in workbook.sheetnames:
+            all_sans_sheet = workbook['All_SANs']
+            for row in all_sans_sheet.iter_rows(min_row=2, values_only=True):
+                san_number, item, timestamp, location = row
+                # Filter by the search text
+                if filter_text.lower() in str(san_number).lower():
+                    log_tree.insert('', 'end', values=(san_number, item, timestamp, location))
+        else:
+            tk.messagebox.showinfo("Info", "'All_SANs' sheet not found or empty.", parent=log_window)
+
+    # Trigger search on text change
+    def on_search(*args):
+        filter_text = search_var.get()
+        load_data(filter_text)
+
+    search_var.trace("w", on_search)  # Bind dynamic updates to search
+
+    # Load initial data
+    load_data()
 
 
 root = ctk.CTk()
