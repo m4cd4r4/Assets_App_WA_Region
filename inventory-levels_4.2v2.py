@@ -3,6 +3,7 @@ import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
+import argparse
 
 # Check if the application is "frozen"
 if getattr(sys, 'frozen', False):

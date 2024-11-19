@@ -1,3 +1,7 @@
+# Macdara O Murchu
+# 19.11.24
+
+
 import logging.config
 from pathlib import Path
 from tkinter import Menu
@@ -29,32 +33,99 @@ else:
 
 
 def run_inventory_script():
-    script_path = script_directory / "inventory-levels_4.2v2.py"
+    script_path = script_directory / "inventory-levels_4.2v3.py"
     if script_path.exists():
         os.system(f"python {script_path}")
     else:
-        tk.messagebox.showerror("Error", "The script 'inventory-levels_4.2v2.py' does not exist in the directory.")
+        tk.messagebox.showerror("Error", "The script 'inventory-levels_4.2v3.py' does not exist in the directory.")
 
 def run_build_room_inventory_script():
-    script_path = script_directory / "inventory-levels_BRv2.2.py"
+    script_path = script_directory / "inventory-levels_BRv2.3.py"
     if script_path.exists():
         os.system(f"python {script_path}")
     else:
-        tk.messagebox.showerror("Error", "The script 'inventory-levels_BRv2.2.py' does not exist in the directory.")
+        tk.messagebox.showerror("Error", "The script 'inventory-levels_BRv2.3.py' does not exist in the directory.")
 
 def run_darwin_inventory_script():
-    script_path = script_directory / "inventory-levels_darwinv1.py"
+    script_path = script_directory / "inventory-levels_darwin.v2.py"
     if script_path.exists():
         os.system(f"python {script_path}")
     else:
-        tk.messagebox.showerror("Error", "The script 'inventory-levels_darwinv1.py' does not exist in the directory.")
+        tk.messagebox.showerror("Error", "The script 'inventory-levels_darwin.v2.py' does not exist in the directory.")
 
 def run_combined_rooms_inventory_script():
-    script_path = script_directory / "inventory-levels_combinedv1.4.py"
+    script_path = script_directory / "inventory-levels_combinedv1.5.py"
     if script_path.exists():
         os.system(f"python {script_path}")
     else:
-        tk.messagebox.showerror("Error", "The script 'inventory-levels_combinedv1.4.py' does not exist in the directory.")
+        tk.messagebox.showerror("Error", "The script 'inventory-levels_combinedv1.5.py' does not exist in the directory.")
+
+def save_plots():
+    """
+    Saves an image of each inventory data to a timestamped subfolder within the 'Plots' directory.
+    """
+    # Create a timestamped subfolder within the 'Plots' directory
+    plots_dir = script_directory / "Plots"
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    save_dir = plots_dir / f"All_{timestamp}"
+    save_dir.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
+
+    # Define the scripts and their corresponding output filenames
+    inventory_scripts = [
+        ("inventory-levels_4.2v3.py", "Basement_4.2_inventory.png"),
+        ("inventory-levels_BRv2.3.py", "Build_Room_inventory.png"),
+        ("inventory-levels_darwin.v2.py", "Darwin_inventory.png"),
+        ("inventory-levels_combinedv1.5.py", "Combined_inventory.png"),
+    ]
+
+    # Loop through each script and generate plots
+    for script_name, output_file in inventory_scripts:
+        script_path = script_directory / script_name
+        if script_path.exists():
+            try:
+                # Define output file path
+                output_path = save_dir / output_file
+
+                # Run the script with the output argument
+                subprocess.run(
+                    ["python", str(script_path), "--output", str(output_path)],
+                    check=True,
+                    env={**os.environ, "MPLBACKEND": "Agg"}  # Headless matplotlib
+                )
+            except subprocess.CalledProcessError as e:
+                logging.error(f"Error while saving {output_file}: {e}")
+                tk.messagebox.showerror("Error", f"Error while saving {output_file}: {e}")
+        else:
+            logging.error(f"Script '{script_name}' not found!")
+            tk.messagebox.showerror("Error", f"Script '{script_name}' not found!")
+
+    # Display the Info tab with folder opening functionality
+    def open_folder():
+        """
+        Opens the folder where plots are saved.
+        """
+        if os.name == 'nt':  # Windows
+            os.startfile(save_dir)
+        elif sys.platform == 'darwin':  # macOS
+            subprocess.run(['open', save_dir])
+        else:  # Linux and others
+            subprocess.run(['xdg-open', save_dir])
+
+    # Create the Info popup
+    info_window = tk.Toplevel(root)
+    info_window.title("Info")
+    info_window.geometry("400x150")
+    tk.Label(info_window, text=f"All plots have been saved in:\n{save_dir}", wraplength=350).pack(pady=10)
+
+    open_folder_button = ttk.Button(info_window, text="Open folder", command=open_folder)
+    open_folder_button.pack(pady=10)
+
+    close_button = ttk.Button(info_window, text="Close", command=info_window.destroy)
+    close_button.pack(pady=5)
+
+    info_window.mainloop()
+
+
 
 def open_spreadsheet():
     try:
@@ -171,22 +242,266 @@ def view_all_sans_log():
     # Load initial data
     load_data()
 
+def view_san_returns_log():
+    """
+    Displays the 'SAN_Returns' sheet in a Treeview widget with columns:
+    'SAN', 'Gen', 'Returned By', 'Returned To', 'Notes', and 'Timestamp'.
+    """
+    # Ensure the 'SAN_Returns' sheet exists
+    if 'SAN_Returns' not in workbook.sheetnames:
+        tk.messagebox.showinfo("Info", "'SAN_Returns' sheet not found. Creating it now.")
+        san_returns_sheet = workbook.create_sheet('SAN_Returns')
+        san_returns_sheet.append(["SAN", "Gen", "Returned By", "Returned To", "Notes", "Timestamp"])  # Updated headers
+        workbook.save(workbook_path)
+
+    log_window = tk.Toplevel(root)
+    log_window.title("SAN Returns Log")
+    log_window.geometry("900x600")
+
+    # Treeview for the SAN_Returns sheet
+    columns = ("SAN", "Gen", "Returned By", "Returned To", "Notes", "Timestamp")  # Include Gen column
+    returns_tree = ttk.Treeview(log_window, columns=columns, show="headings")
+    for col in columns:
+        returns_tree.heading(col, text=col)
+        returns_tree.column(col, anchor="w")
+    returns_tree.pack(expand=True, fill="both", padx=10, pady=10)
+
+    scrollbar = ttk.Scrollbar(log_window, orient="vertical", command=returns_tree.yview)
+    scrollbar.pack(side="right", fill="y")
+    returns_tree.configure(yscrollcommand=scrollbar.set)
+
+    # Load data from the "SAN_Returns" sheet
+    refresh_san_returns_log(returns_tree)
+
+    # Add the right-click copy option to the Treeview
+    add_copy_option(returns_tree)
+
+    # Add the "Return Asset" button at the bottom
+    return_asset_button = ctk.CTkButton(
+        log_window,
+        text="Return Asset",
+        font=("Helvetica", 14),
+        command=lambda: open_san_return_form_with_tree(returns_tree)  # Pass returns_tree to the form
+    )
+    return_asset_button.pack(pady=10)  # Positioned at the bottom of the log window
+
+
+def open_san_return_form_with_tree(returns_tree):
+    """
+    Opens the SAN Return Form and passes the Treeview reference for dynamic updates.
+    """
+    form_window = tk.Toplevel(root)
+    form_window.title("SAN Return Form")
+    form_window.geometry("450x450")
+
+    # Labels and Entry fields
+    fields = ["SAN", "Gen", "Returned By", "Returned To", "Notes", "Timestamp"]
+    entries = {}
+
+    # Add static Gen values for the dropdown
+    gen_values = ["G5", "G6", "G7", "G8", "G9", "G10", "G11"]
+
+    for idx, field in enumerate(fields):
+        tk.Label(form_window, text=field).grid(row=idx, column=0, padx=10, pady=5, sticky="e")
+        if field == "Gen":
+            # Add a dropdown menu for Gen
+            entries[field] = ttk.Combobox(form_window, values=gen_values, state="readonly", width=27)
+            entries[field].current(0)  # Default to the first value
+        elif field == "Timestamp":
+            # Timestamp prefilled with current datetime
+            entries[field] = tk.Entry(form_window, width=30)
+            entries[field].insert(0, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        else:
+            entries[field] = tk.Entry(form_window, width=30)
+        entries[field].grid(row=idx, column=1, padx=10, pady=5)
+
+    # Submit Button
+    tk.Button(
+        form_window,
+        text="Submit",
+        command=lambda: submit_san_return(
+            entries["SAN"].get(),
+            entries["Gen"].get(),
+            entries["Returned By"].get(),
+            entries["Returned To"].get(),
+            entries["Notes"].get(),
+            entries["Timestamp"].get(),
+            form_window,
+            returns_tree  # Pass the Treeview to the submit function
+        )
+    ).grid(row=len(fields), column=0, columnspan=2, pady=20)
+
+
+def submit_san_return(san, gen, returned_by, returned_to, notes, timestamp, form_window, returns_tree):
+    """
+    Validates input and submits the data to the SAN_Returns sheet.
+    Updates the Treeview dynamically after submission.
+    """
+    # Check if required fields are filled
+    if not san or not gen or not returned_by or not returned_to or not timestamp:
+        tk.messagebox.showerror("Error", "All fields except 'Notes' are required.", parent=form_window)
+        return
+
+    # Ensure the 'SAN_Returns' sheet exists
+    if 'SAN_Returns' not in workbook.sheetnames:
+        san_returns_sheet = workbook.create_sheet('SAN_Returns')
+        san_returns_sheet.append(["SAN", "Gen", "Returned By", "Returned To", "Notes", "Timestamp"])  # Add headers
+    else:
+        san_returns_sheet = workbook['SAN_Returns']
+
+    # Append the data to the SAN_Returns sheet
+    san_returns_sheet.append([san, gen, returned_by, returned_to, notes, timestamp])
+
+    # Save the workbook
+    workbook.save(workbook_path)
+
+    # Update the Treeview dynamically
+    refresh_san_returns_log(returns_tree)
+
+    # Inform the user and close the form
+    tk.messagebox.showinfo("Success", "SAN return data submitted successfully!", parent=form_window)
+    form_window.destroy()  # Close the form window
+
+
+def refresh_san_returns_log(returns_tree):
+    """
+    Refreshes the Treeview with the latest data from the SAN_Returns sheet.
+    """
+    returns_tree.delete(*returns_tree.get_children())  # Clear current data
+    if 'SAN_Returns' in workbook.sheetnames:
+        san_returns_sheet = workbook['SAN_Returns']
+        for row in san_returns_sheet.iter_rows(min_row=2, values_only=True):
+            returns_tree.insert('', 'end', values=row)
+
+
+def view_san_returns_log():
+    """
+    Displays the 'SAN_Returns' sheet in a Treeview widget with columns:
+    'SAN', 'Returned By', 'Returned To', 'Notes', and 'Timestamp'.
+    """
+    # Ensure the 'SAN_Returns' sheet exists
+    if 'SAN_Returns' not in workbook.sheetnames:
+        tk.messagebox.showinfo("Info", "'SAN_Returns' sheet not found. Creating it now.")
+        san_returns_sheet = workbook.create_sheet('SAN_Returns')
+        san_returns_sheet.append(["SAN", "Returned By", "Returned To", "Notes", "Timestamp"])
+        workbook.save(workbook_path)
+
+    log_window = tk.Toplevel(root)
+    log_window.title("SAN Returns Log")
+    log_window.geometry("800x600")
+
+    # Treeview for the SAN_Returns sheet
+    columns = ("SAN", "Returned By", "Returned To", "Notes", "Timestamp")
+    returns_tree = ttk.Treeview(log_window, columns=columns, show="headings")
+    for col in columns:
+        returns_tree.heading(col, text=col)
+        returns_tree.column(col, anchor="w")
+    returns_tree.pack(expand=True, fill="both", padx=10, pady=10)
+
+    scrollbar = ttk.Scrollbar(log_window, orient="vertical", command=returns_tree.yview)
+    scrollbar.pack(side="right", fill="y")
+    returns_tree.configure(yscrollcommand=scrollbar.set)
+
+    # Load data from the "SAN_Returns" sheet
+    refresh_san_returns_log(returns_tree)
+
+    # Add the right-click copy option to the Treeview
+    add_copy_option(returns_tree)
+
+    # Add the "Return Asset" button at the bottom
+    return_asset_button = ctk.CTkButton(
+        log_window,
+        text="Return Asset",
+        font=("Helvetica", 14),
+        command=lambda: open_san_return_form_with_tree(returns_tree)  # Pass returns_tree to the form
+    )
+    return_asset_button.pack(pady=10)  # Positioned at the bottom of the log window
+
+
+def open_san_return_form_with_tree(returns_tree):
+    """
+    Opens the SAN Return Form and passes the Treeview reference for dynamic updates.
+    """
+    form_window = tk.Toplevel(root)
+    form_window.title("SAN Return Form")
+    form_window.geometry("400x400")
+
+    # Labels and Entry fields
+    fields = ["SAN", "Returned By", "Returned To", "Notes", "Timestamp"]
+    entries = {}
+
+    for idx, field in enumerate(fields):
+        tk.Label(form_window, text=field).grid(row=idx, column=0, padx=10, pady=5, sticky="e")
+        entry = tk.Entry(form_window, width=30)
+        entry.grid(row=idx, column=1, padx=10, pady=5)
+        entries[field] = entry
+
+    # Timestamp prefilled with current datetime
+    entries["Timestamp"].insert(0, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
+    # Submit Button
+    tk.Button(
+        form_window,
+        text="Submit",
+        command=lambda: submit_san_return(
+            entries["SAN"].get(),
+            entries["Returned By"].get(),
+            entries["Returned To"].get(),
+            entries["Notes"].get(),
+            entries["Timestamp"].get(),
+            form_window,
+            returns_tree  # Pass the Treeview to the submit function
+        )
+    ).grid(row=len(fields), column=0, columnspan=2, pady=20)
+
 
 root = ctk.CTk()
-root.title("Perth EUC Stock")
+root.title("EUC Assets - WA")
 root.geometry("675x850")
 
+# Unified font settings for the application
+custom_font = ("Helvetica", 12)
+
+# Custom styles for Treeview
+style = ttk.Style()
+style.theme_use("clam")
+style.configure("Treeview",
+                font=("Helvetica", 12),
+                rowheight=25,
+                background="#f9f9f9",
+                foreground="#333",
+                fieldbackground="#f9f9f9")
+style.map("Treeview", background=[("selected", "#3399ff")])
+
+
+
 menu_bar = tk.Menu(root)
+
+# Create a submenu for SANs
+sans_menu = tk.Menu(menu_bar, tearoff=0)
+sans_menu.add_command(label="SANs In Stock", command=view_all_sans_log)
+sans_menu.add_command(label="SAN Returns List", command=view_san_returns_log)
+sans_menu.add_command(label="SAN Returns", command=lambda: open_san_return_form_with_tree(None))
+
+# Create a submenu for Inventory
+inventory_menu = tk.Menu(menu_bar, tearoff=0)
+inventory_menu.add_command(label="Basement 4.2 Inventory", command=run_inventory_script)
+inventory_menu.add_command(label="Build Room Inventory", command=run_build_room_inventory_script)
+inventory_menu.add_command(label="Darwin Inventory", command=run_darwin_inventory_script)
+inventory_menu.add_command(label="Combined Inventory", command=run_combined_rooms_inventory_script)
+inventory_menu.add_command(label="Save Plots", command=save_plots)
+
+# Create the main Options menu
 plots_menu = tk.Menu(menu_bar, tearoff=0)
-plots_menu.add_command(label="Basement 4.2 Inventory", command=run_inventory_script)
-plots_menu.add_command(label="Build Room Inventory", command=run_build_room_inventory_script)
-plots_menu.add_command(label="Darwin Inventory", command=run_darwin_inventory_script)
-plots_menu.add_command(label="Combined Inventory", command=run_combined_rooms_inventory_script)
-plots_menu.add_command(label="SANs In Stock", command=view_all_sans_log)
+plots_menu.add_cascade(label="SANs", menu=sans_menu)  # Add SANs submenu
+plots_menu.add_cascade(label="Inventory", menu=inventory_menu)  # Add Inventory submenu
 plots_menu.add_command(label="Open Spreadsheet", command=open_spreadsheet)
 # plots_menu.add_command(label="Headsets In Stock", command=view_headsets_log)
-menu_bar.add_cascade(label="Data", menu=plots_menu)
+
+menu_bar.add_cascade(label="Options", menu=plots_menu)
 root.config(menu=menu_bar)
+
+
 
 script_directory = Path(__file__).parent
 
@@ -369,6 +684,20 @@ for col, (text, command) in enumerate(buttons):
     button_widgets.append(btn)
 
 
+# # Entry and control frame for "+" and "-" buttons
+# control_frame = ctk.CTkFrame(entry_frame)
+# control_frame.pack(side='left', padx=10, pady=3)
+
+# button_subtract = ctk.CTkButton(control_frame, text="-", command=lambda: update_count('subtract'), width=button_width, font=("Helvetica", 14), corner_radius=3)
+# button_subtract.pack(side='left', padx=3)
+
+# entry_value = tk.Entry(control_frame, font=("Helvetica", 14), justify='center', width=5, validate="key", validatecommand=vcmd)
+# entry_value.pack(side='left', padx=3)
+
+# button_add = ctk.CTkButton(control_frame, text="+", command=lambda: update_count('add'), width=button_width, font=("Helvetica", 14), corner_radius=3)
+# button_add.pack(side='left', padx=3)
+
+
 def update_treeview():
     tree.delete(*tree.get_children())
     workbook = load_workbook(workbook_path)
@@ -513,63 +842,63 @@ def update_count(operation):
 
 
 
+# Treeview for items
 columns = ("Item", "LastCount", "NewCount")
-tree = ttk.Treeview(frame, columns=columns, show="headings", selectmode='browse', style="Treeview")
+tree = ttk.Treeview(frame, columns=columns, show="headings", selectmode='browse', style="Treeview", height=18)
 for col in columns:
     tree.heading(col, text=col, anchor='w')
-    tree.column("Item", anchor='w', width=250, stretch=False)  # Width of the "Item" column in the treeview
+    tree.column("Item", anchor='w', width=250, stretch=False)
     tree.column("LastCount", anchor='w', width=175, stretch=False)
-tree.pack(expand=True, fill="both", padx=3, pady=3)
+tree.pack(expand=True, fill="both", padx=2, pady=2)  # Minimal padding
 
-# Frame to hold the controls for the "+" and "-" buttons and the text field
+# Controls frame
 controls_frame = ctk.CTkFrame(root)
-controls_frame.pack(pady=10, fill="x")  # Positioned between the tree and log view
+controls_frame.pack(pady=2, fill="x")  # Minimal vertical padding
 
-# Sub-frame to group the buttons and the text field tightly
+# Sub-frame for input and buttons
 entry_controls_frame = ctk.CTkFrame(controls_frame)
-entry_controls_frame.pack(pady=10, anchor="center")  # Center align the sub-frame
+entry_controls_frame.pack(pady=2, anchor="center")  # Tighter vertical packing
 
-# Subtract button on the left
+# "-" button
 button_subtract = ctk.CTkButton(
     entry_controls_frame,
     text="-",
     command=lambda: update_count('subtract'),
-    width=50,
+    width=45,
     font=("Helvetica", 14),
     corner_radius=3
 )
-button_subtract.pack(side="left", padx=5)  # Adjust padding to reduce spacing
+button_subtract.pack(side="left", padx=2)  # Minimal horizontal padding
 
-# Text field for input, centered between the "+" and "-" buttons
+# Entry field
 entry_value = tk.Entry(
     entry_controls_frame,
     font=("Helvetica", 14),
     justify="center",
-    width=10,  # Adjust the width as needed
+    width=5,
     validate="key",
     validatecommand=vcmd
 )
-entry_value.pack(side="left", padx=5)  # Minimal padding to reduce spacing
+entry_value.pack(side="left", padx=2)  # Minimal horizontal padding
 
-# Add button on the right
+# "+" button
 button_add = ctk.CTkButton(
     entry_controls_frame,
     text="+",
     command=lambda: update_count('add'),
-    width=50,
+    width=45,
     font=("Helvetica", 14),
     corner_radius=3
 )
-button_add.pack(side="left", padx=5)  # Adjust padding to reduce spacing
+button_add.pack(side="left", padx=2)  # Minimal horizontal padding
 
-
-
-# Frame to hold the log view at the bottom
+# Log view frame
 log_view_frame = ctk.CTkFrame(root)
-log_view_frame.pack(side=tk.BOTTOM, fill='both', expand=True, padx=10, pady=10)
+log_view_frame.pack(side=tk.BOTTOM, fill='both', expand=True, padx=2, pady=2)  # Minimal margins
 
+# Log Treeview
 log_view_columns = ("Timestamp", "Item", "Action", "SAN Number")
-log_view = ttk.Treeview(log_view_frame, columns=log_view_columns, show="headings", style="Treeview", height=8)
+log_view = ttk.Treeview(log_view_frame, columns=log_view_columns, show="headings", style="Treeview", height=15)
 for col in log_view_columns:
     log_view.heading(col, text=col, anchor='w')
     log_view.column("Timestamp", anchor='w', width=175, stretch=False)
@@ -580,6 +909,7 @@ scrollbar_log = ttk.Scrollbar(log_view_frame, orient="vertical", command=log_vie
 scrollbar_log.pack(side='right', fill='y')
 log_view.configure(yscrollcommand=scrollbar_log.set)
 log_view.pack(expand=True, fill='both')
+
 
 # Add the copying functionality here
 def add_copy_option(tree):

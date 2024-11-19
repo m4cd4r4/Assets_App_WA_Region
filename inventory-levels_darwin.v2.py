@@ -3,22 +3,20 @@ import sys
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
+import argparse
 
-# Check if the application is "frozen"
-if getattr(sys, 'frozen', False):
-    # If it's frozen, use the path relative to the executable
-    application_path = sys._MEIPASS
-else:
-    # If it's not frozen, use the path relative to the script file
-    application_path = os.path.dirname(__file__)
+# Argument parsing for output file path
+parser = argparse.ArgumentParser(description="Generate inventory level plot.")
+parser.add_argument("--output", required=True, help="Path to save the output plot")
+args = parser.parse_args()
 
 # Construct the path to the file
-file_path = os.path.join(application_path, 'EUC_Perth_Assets.xlsx')
+file_path = os.path.join(os.path.dirname(__file__), 'EUC_Perth_Assets.xlsx')
 
 # Load the spreadsheet
 try:
     xl = pd.ExcelFile(file_path)
-    df_items = xl.parse('BR_Items')
+    df_items = xl.parse('Darwin_Items')
 except FileNotFoundError:
     print(f"Error: File not found at {file_path}. Please ensure the file exists.")
     sys.exit(1)
@@ -44,26 +42,13 @@ try:
     plt.xlabel('Volume', fontsize=12)
     plt.xlim(0, df_items['NewCount'].max() + 20)  # Dynamically adjust x-axis limit
     current_date = datetime.now().strftime('%d-%m-%Y')
-    plt.title(f'Build Room - Inventory Levels (Perth) - {current_date}', fontsize=14)
+    plt.title(f'Darwin - Inventory Levels - {current_date}', fontsize=14)
     plt.tight_layout()
 
-    # Ensure 'Plots' folder exists
-    plots_folder = os.path.join(application_path, 'Plots')
-    if not os.path.exists(plots_folder):
-        os.makedirs(plots_folder)
-
-    # Get current date and time for file name
-    current_datetime = datetime.now().strftime('%d.%m.%y-%H.%M.%S')
-
-    # Construct the full file path for saving the plot
-    file_name = os.path.join(plots_folder, f'BR_Inventory_Levels_{current_datetime}.png')
-
-    # Save the plot
-    plt.savefig(file_name)
-    print(f"Plot saved at {file_name}")
-
-    # Show the plot (blocks execution until the window is closed)
-    plt.show()
+    # Save the plot to the specified output file
+    output_path = args.output
+    plt.savefig(output_path)
+    print(f"Plot saved at {output_path}")
 
 except Exception as e:
     print(f"Error generating chart: {e}")
@@ -71,6 +56,3 @@ finally:
     # Ensure all plots are closed properly
     plt.close('all')
     print("Plot closed successfully.")
-
-# End the script gracefully
-print("Exiting application.")

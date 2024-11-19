@@ -174,7 +174,23 @@ def view_all_sans_log():
 
 root = ctk.CTk()
 root.title("Perth EUC Stock")
-root.geometry("675x850")
+root.geometry("700x850")
+
+# Unified font settings for the application
+custom_font = ("Helvetica", 12)
+
+# Custom styles for Treeview
+style = ttk.Style()
+style.theme_use("clam")
+style.configure("Treeview",
+                font=("Helvetica", 12),
+                rowheight=25,
+                background="#f9f9f9",
+                foreground="#333",
+                fieldbackground="#f9f9f9")
+style.map("Treeview", background=[("selected", "#3399ff")])
+
+
 
 menu_bar = tk.Menu(root)
 plots_menu = tk.Menu(menu_bar, tearoff=0)
@@ -367,6 +383,20 @@ for col, (text, command) in enumerate(buttons):
     )
     btn.grid(row=0, column=col, padx=5, pady=5, sticky="ew")
     button_widgets.append(btn)
+
+
+# # Entry and control frame for "+" and "-" buttons
+# control_frame = ctk.CTkFrame(entry_frame)
+# control_frame.pack(side='left', padx=10, pady=3)
+
+# button_subtract = ctk.CTkButton(control_frame, text="-", command=lambda: update_count('subtract'), width=button_width, font=("Helvetica", 14), corner_radius=3)
+# button_subtract.pack(side='left', padx=3)
+
+# entry_value = tk.Entry(control_frame, font=("Helvetica", 14), justify='center', width=5, validate="key", validatecommand=vcmd)
+# entry_value.pack(side='left', padx=3)
+
+# button_add = ctk.CTkButton(control_frame, text="+", command=lambda: update_count('add'), width=button_width, font=("Helvetica", 14), corner_radius=3)
+# button_add.pack(side='left', padx=3)
 
 
 def update_treeview():
