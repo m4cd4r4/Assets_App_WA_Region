@@ -6,7 +6,7 @@ from datetime import datetime
 import argparse
 
 # Argument parsing for output file path
-parser = argparse.ArgumentParser(description="Generate inventory level plot for Build Room.")
+parser = argparse.ArgumentParser(description="Generate inventory level plot for Basement 4.2.")
 parser.add_argument("--output", required=True, help="Path to save the output plot")
 args = parser.parse_args()
 
@@ -25,7 +25,7 @@ file_path = os.path.join(application_path, 'EUC_Perth_Assets.xlsx')
 try:
     print(f"Loading spreadsheet from {file_path}")
     xl = pd.ExcelFile(file_path)
-    df_items = xl.parse('BR_Items')
+    df_items = xl.parse('4.2_Items')  # Changed from 'BR_Items' to '4.2_Items'
     print("Spreadsheet loaded successfully.")
 except FileNotFoundError:
     print(f"Error: File not found at {file_path}. Please ensure the file exists.")
@@ -66,7 +66,7 @@ try:
     plt.xlabel('Volume', fontsize=12)
     plt.xlim(0, df_items['NewCount'].max() + 20)  # Dynamically adjust x-axis limit
     current_date = datetime.now().strftime('%d-%m-%Y')
-    plt.title(f'Build Room - Inventory Levels (Perth) - {current_date}', fontsize=14)
+    plt.title(f'Basement 4.2 - Inventory Levels (Perth) - {current_date}', fontsize=14)  # Updated title
     plt.tight_layout()
 
     # Save the plot to the specified output file
@@ -78,6 +78,9 @@ try:
 
     plt.savefig(output_path)
     print(f"Plot saved successfully at {output_path}")
+
+    # Show the plot interactively
+    plt.show()  # This will display the plot in a GUI window
 
 except Exception as e:
     print(f"Error generating chart: {e}")

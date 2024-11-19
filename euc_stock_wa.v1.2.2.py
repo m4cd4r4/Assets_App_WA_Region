@@ -16,6 +16,7 @@ from tkinter import filedialog
 from tkinter import messagebox
 import pandas as pd  # Ensure pandas is imported for date operations
 
+
 # Function to save the workbook path to config.py
 def save_config(workbook_path):
     with open('config.py', 'w') as config_file:
@@ -32,33 +33,62 @@ else:
     logging.basicConfig(level=logging.DEBUG)
 
 
-def run_inventory_script():
-    script_path = script_directory / "inventory-levels_4.2v3.py"
-    if script_path.exists():
-        os.system(f"python {script_path}")
-    else:
-        tk.messagebox.showerror("Error", "The script 'inventory-levels_4.2v3.py' does not exist in the directory.")
+def run_inventory_script(script_name, output_prefix, success_message):
+    """
+    Generalized function to run an inventory script and handle its output.
+    """
+    script_path = script_directory / script_name
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")  # Generate a timestamp
+    output_path = script_directory / "Plots" / f"{output_prefix}_{timestamp}.png"
 
-def run_build_room_inventory_script():
-    script_path = script_directory / "inventory-levels_BRv2.3.py"
-    if script_path.exists():
-        os.system(f"python {script_path}")
-    else:
-        tk.messagebox.showerror("Error", "The script 'inventory-levels_BRv2.3.py' does not exist in the directory.")
+    # Ensure the output directory exists
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
-def run_darwin_inventory_script():
-    script_path = script_directory / "inventory-levels_darwin.v2.py"
     if script_path.exists():
-        os.system(f"python {script_path}")
+        try:
+            subprocess.run(
+                ["python", str(script_path), "--output", str(output_path)],
+                check=True,
+            )
+            messagebox.showinfo("Success", f"{success_message} saved to {output_path}")
+        except subprocess.CalledProcessError as e:
+            logging.error(f"Error running {script_name}: {e}")
+            tk.messagebox.showerror("Error", f"Failed to run the script: {e}")
     else:
-        tk.messagebox.showerror("Error", "The script 'inventory-levels_darwin.v2.py' does not exist in the directory.")
+        tk.messagebox.showerror(
+            "Error", f"The script '{script_name}' does not exist in the directory."
+        )
 
-def run_combined_rooms_inventory_script():
-    script_path = script_directory / "inventory-levels_combinedv1.5.py"
-    if script_path.exists():
-        os.system(f"python {script_path}")
-    else:
-        tk.messagebox.showerror("Error", "The script 'inventory-levels_combinedv1.5.py' does not exist in the directory.")
+
+# Use the generalized function for specific scripts
+def run_basement_4_2_inventory():
+    run_inventory_script(
+        script_name="inventory-levels_4.2v3.py",
+        output_prefix="Basement_4.2_inventory",
+        success_message="Basement 4.2 inventory plot"
+    )
+
+def run_build_room_inventory():
+    run_inventory_script(
+        script_name="inventory-levels_BRv2.3.py",
+        output_prefix="Build_Room_inventory",
+        success_message="Build Room inventory plot"
+    )
+
+def run_darwin_inventory():
+    run_inventory_script(
+        script_name="inventory-levels_darwin.v2.py",
+        output_prefix="Darwin_inventory",
+        success_message="Darwin inventory plot"
+    )
+
+def run_combined_inventory():
+    run_inventory_script(
+        script_name="inventory-levels_combinedv1.5.py",
+        output_prefix="Combined_inventory",
+        success_message="Combined inventory plot"
+    )
+
 
 def save_plots():
     """
@@ -70,60 +100,56 @@ def save_plots():
     save_dir = plots_dir / f"All_{timestamp}"
     save_dir.mkdir(parents=True, exist_ok=True)  # Ensure the directory exists
 
-    # Define the scripts and their corresponding output filenames
+    # Define the scripts and their corresponding output prefixes and success messages
     inventory_scripts = [
-        ("inventory-levels_4.2v3.py", "Basement_4.2_inventory.png"),
-        ("inventory-levels_BRv2.3.py", "Build_Room_inventory.png"),
-        ("inventory-levels_darwin.v2.py", "Darwin_inventory.png"),
-        ("inventory-levels_combinedv1.5.py", "Combined_inventory.png"),
+        ("inventory-levels_4.2v3.py", "Basement_4.2_inventory", "Basement 4.2 inventory plot"),
+        ("inventory-levels_BRv2.3.py", "Build_Room_inventory", "Build Room inventory plot"),
+        ("inventory-levels_darwin.v2.py", "Darwin_inventory", "Darwin inventory plot"),
+        ("inventory-levels_combinedv1.5.py", "Combined_inventory", "Combined inventory plot"),
     ]
 
     # Loop through each script and generate plots
-    for script_name, output_file in inventory_scripts:
+    for script_name, output_prefix, success_message in inventory_scripts:
         script_path = script_directory / script_name
         if script_path.exists():
             try:
-                # Define output file path
-                output_path = save_dir / output_file
-
-                # Run the script with the output argument
+                output_path = save_dir / f"{output_prefix}.png"
                 subprocess.run(
                     ["python", str(script_path), "--output", str(output_path)],
                     check=True,
                     env={**os.environ, "MPLBACKEND": "Agg"}  # Headless matplotlib
                 )
+                logging.info(f"{success_message} saved to {output_path}")
             except subprocess.CalledProcessError as e:
-                logging.error(f"Error while saving {output_file}: {e}")
-                tk.messagebox.showerror("Error", f"Error while saving {output_file}: {e}")
+                logging.error(f"Error while saving {success_message}: {e}")
+                tk.messagebox.showerror("Error", f"Error while saving {success_message}: {e}")
         else:
             logging.error(f"Script '{script_name}' not found!")
             tk.messagebox.showerror("Error", f"Script '{script_name}' not found!")
 
-    # Display the Info tab with folder opening functionality
-    def open_folder():
-        """
-        Opens the folder where plots are saved.
-        """
-        if os.name == 'nt':  # Windows
-            os.startfile(save_dir)
-        elif sys.platform == 'darwin':  # macOS
-            subprocess.run(['open', save_dir])
-        else:  # Linux and others
-            subprocess.run(['xdg-open', save_dir])
+    # Open the folder with saved plots
+    open_folder_prompt(save_dir)
 
-    # Create the Info popup
+
+def open_folder_prompt(folder_path):
+    """
+    Prompts the user to open the folder where plots are saved.
+    """
+    def open_folder():
+        if os.name == 'nt':  # Windows
+            os.startfile(folder_path)
+        elif sys.platform == 'darwin':  # macOS
+            subprocess.run(['open', folder_path])
+        else:  # Linux and others
+            subprocess.run(['xdg-open', folder_path])
+
     info_window = tk.Toplevel(root)
     info_window.title("Info")
     info_window.geometry("400x150")
-    tk.Label(info_window, text=f"All plots have been saved in:\n{save_dir}", wraplength=350).pack(pady=10)
+    tk.Label(info_window, text=f"All plots have been saved in:\n{folder_path}", wraplength=350).pack(pady=10)
 
     open_folder_button = ttk.Button(info_window, text="Open folder", command=open_folder)
     open_folder_button.pack(pady=10)
-
-    close_button = ttk.Button(info_window, text="Close", command=info_window.destroy)
-    close_button.pack(pady=5)
-
-    info_window.mainloop()
 
 
 
@@ -485,10 +511,10 @@ sans_menu.add_command(label="SAN Returns", command=lambda: open_san_return_form_
 
 # Create a submenu for Inventory
 inventory_menu = tk.Menu(menu_bar, tearoff=0)
-inventory_menu.add_command(label="Basement 4.2 Inventory", command=run_inventory_script)
-inventory_menu.add_command(label="Build Room Inventory", command=run_build_room_inventory_script)
-inventory_menu.add_command(label="Darwin Inventory", command=run_darwin_inventory_script)
-inventory_menu.add_command(label="Combined Inventory", command=run_combined_rooms_inventory_script)
+inventory_menu.add_command(label="Basement 4.2 Inventory", command=run_basement_4_2_inventory)
+inventory_menu.add_command(label="Build Room Inventory", command=run_build_room_inventory)  # Corrected function name
+inventory_menu.add_command(label="Darwin Inventory", command=run_darwin_inventory)
+inventory_menu.add_command(label="Combined Inventory", command=run_combined_inventory)
 inventory_menu.add_command(label="Save Plots", command=save_plots)
 
 # Create the main Options menu

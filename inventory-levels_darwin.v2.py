@@ -50,6 +50,9 @@ try:
     plt.savefig(output_path)
     print(f"Plot saved at {output_path}")
 
+    # Show the plot interactively
+    plt.show()  # This will display the plot in a GUI window
+
 except Exception as e:
     print(f"Error generating chart: {e}")
 finally:

@@ -71,8 +71,8 @@ try:
     plt.savefig(output_path)
     print(f"Plot saved successfully at {output_path}")
 
-    # Uncomment the following line if you want to display the plot during debugging
-    # plt.show()
+    # Show the plot interactively
+    plt.show()  # This will display the plot in a GUI window
 
 except Exception as e:
     print(f"Error generating chart: {e}")
