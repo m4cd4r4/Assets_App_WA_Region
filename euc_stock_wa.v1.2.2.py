@@ -316,35 +316,54 @@ def open_san_return_form_with_tree(returns_tree):
     """
     Opens the SAN Return Form and passes the Treeview reference for dynamic updates.
     """
-    form_window = tk.Toplevel(root)
+    form_window = ctk.CTkToplevel(root)
     form_window.title("SAN Return Form")
-    form_window.geometry("450x450")
+    form_window.geometry("500x500")
 
-    # Labels and Entry fields
+    # Title Label
+    title_label = ctk.CTkLabel(
+        form_window, text="SAN Return Form", font=("Helvetica", 18, "bold")
+    )
+    title_label.pack(pady=10)
+
+    # Form Frame
+    form_frame = ctk.CTkFrame(form_window, corner_radius=10)
+    form_frame.pack(padx=20, pady=20, fill="both", expand=True)
+
+    # Fields and Input
     fields = ["SAN", "Gen", "Returned By", "Returned To", "Notes", "Timestamp"]
     entries = {}
-
-    # Add static Gen values for the dropdown
     gen_values = ["G5", "G6", "G7", "G8", "G9", "G10", "G11"]
 
     for idx, field in enumerate(fields):
-        tk.Label(form_window, text=field).grid(row=idx, column=0, padx=10, pady=5, sticky="e")
+        label = ctk.CTkLabel(form_frame, text=field, font=("Helvetica", 14))
+        label.grid(row=idx, column=0, padx=10, pady=10, sticky="e")
+
         if field == "Gen":
-            # Add a dropdown menu for Gen
-            entries[field] = ttk.Combobox(form_window, values=gen_values, state="readonly", width=27)
-            entries[field].current(0)  # Default to the first value
+            # Dropdown for "Gen"
+            entries[field] = ttk.Combobox(
+                form_frame, values=gen_values, state="readonly", width=30
+            )
+            entries[field].current(0)
         elif field == "Timestamp":
-            # Timestamp prefilled with current datetime
-            entries[field] = tk.Entry(form_window, width=30)
+            # Prefill Timestamp
+            entries[field] = ctk.CTkEntry(form_frame, width=250)
             entries[field].insert(0, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         else:
-            entries[field] = tk.Entry(form_window, width=30)
-        entries[field].grid(row=idx, column=1, padx=10, pady=5)
+            entries[field] = ctk.CTkEntry(form_frame, width=250)
+
+        entries[field].grid(row=idx, column=1, padx=10, pady=10)
+
+    # Buttons Frame
+    buttons_frame = ctk.CTkFrame(form_window, corner_radius=10)
+    buttons_frame.pack(pady=20)
 
     # Submit Button
-    tk.Button(
-        form_window,
+    submit_button = ctk.CTkButton(
+        buttons_frame,
         text="Submit",
+        font=("Helvetica", 14),
+        width=120,
         command=lambda: submit_san_return(
             entries["SAN"].get(),
             entries["Gen"].get(),
@@ -353,9 +372,21 @@ def open_san_return_form_with_tree(returns_tree):
             entries["Notes"].get(),
             entries["Timestamp"].get(),
             form_window,
-            returns_tree  # Pass the Treeview to the submit function
-        )
-    ).grid(row=len(fields), column=0, columnspan=2, pady=20)
+            returns_tree,  # Pass Treeview reference
+        ),
+    )
+    submit_button.pack(side="left", padx=20)
+
+    # Cancel Button
+    cancel_button = ctk.CTkButton(
+        buttons_frame,
+        text="Cancel",
+        font=("Helvetica", 14),
+        width=120,
+        command=form_window.destroy,
+    )
+    cancel_button.pack(side="left", padx=20)
+
 
 
 def submit_san_return(san, gen, returned_by, returned_to, notes, timestamp, form_window, returns_tree):
