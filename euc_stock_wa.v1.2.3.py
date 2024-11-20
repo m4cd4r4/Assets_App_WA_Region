@@ -344,7 +344,7 @@ def view_san_returns_log():
         workbook.save(workbook_path)
 
     log_window = tk.Toplevel(root)
-    log_window.title("SAN Returns Log")
+    log_window.title("SAN Return Log")
     log_window.geometry("900x600")
 
     # Treeview for the SAN_Returns sheet
@@ -527,7 +527,7 @@ def view_san_returns_log():
         workbook.save(workbook_path)
 
     log_window = tk.Toplevel(root)
-    log_window.title("SAN Returns Log")
+    log_window.title("SAN Return List")
     log_window.geometry("800x600")
 
     # Treeview for the SAN_Returns sheet
@@ -620,8 +620,8 @@ menu_bar = tk.Menu(root)
 # Create a submenu for SANs
 sans_menu = tk.Menu(menu_bar, tearoff=0)
 sans_menu.add_command(label="SANs In Stock", command=view_all_sans_log)
-sans_menu.add_command(label="SAN Returns List", command=view_san_returns_log)
-sans_menu.add_command(label="SAN Returns", command=lambda: open_san_return_form_with_tree(None))
+sans_menu.add_command(label="Returned SANs - List", command=view_san_returns_log)
+sans_menu.add_command(label="Returned SANs", command=lambda: open_san_return_form_with_tree(None))
 
 # Create a submenu for Inventory
 inventory_menu = tk.Menu(menu_bar, tearoff=0)
@@ -630,13 +630,14 @@ inventory_menu.add_command(label="Build Room Inventory", command=run_build_room_
 inventory_menu.add_command(label="Darwin Inventory", command=run_darwin_inventory)
 inventory_menu.add_command(label="Combined Inventory", command=run_combined_inventory)
 inventory_menu.add_command(label="Save Plots", command=save_plots)
-inventory_menu.add_command(label="Check Restock Threshold", command=lambda: check_restock_threshold(10))
+
 
 # Create the main Options menu
 plots_menu = tk.Menu(menu_bar, tearoff=0)
 plots_menu.add_cascade(label="SANs", menu=sans_menu)  # Add SANs submenu
 plots_menu.add_cascade(label="Inventory", menu=inventory_menu)  # Add Inventory submenu
 plots_menu.add_command(label="Open Spreadsheet", command=open_spreadsheet)
+plots_menu.add_command(label="Check Restock Threshold", command=lambda: check_restock_threshold(10))
 # plots_menu.add_command(label="Headsets In Stock", command=view_headsets_log)
 
 menu_bar.add_cascade(label="Options", menu=plots_menu)
