@@ -60,6 +60,69 @@ def run_inventory_script(script_name, output_prefix, success_message):
         )
 
 
+def set_item_threshold():
+    """
+    Open a dialog to allow users to set custom thresholds for items.
+    """
+    threshold_window = tk.Toplevel(root)
+    threshold_window.title("Set Item Threshold")
+    threshold_window.geometry("500x400")
+
+    # Select sheet dropdown
+    tk.Label(threshold_window, text="Select Sheet:").pack(pady=5)
+    sheet_var = tk.StringVar(value='4.2_Items')
+    sheet_dropdown = ttk.Combobox(threshold_window, textvariable=sheet_var, values=['4.2_Items', 'BR_Items', 'Darwin_Items'])
+    sheet_dropdown.pack(pady=5)
+
+    # Select item dropdown
+    tk.Label(threshold_window, text="Select Item:").pack(pady=5)
+    item_var = tk.StringVar()
+    item_dropdown = ttk.Combobox(threshold_window, textvariable=item_var)
+    item_dropdown.pack(pady=5)
+
+    # Update item list when sheet changes
+    def update_item_list(*args):
+        sheet_name = sheet_var.get()
+        if sheet_name in workbook.sheetnames:
+            sheet = workbook[sheet_name]
+            items = [row[0] for row in sheet.iter_rows(min_row=2, max_col=1, values_only=True) if row[0]]
+            item_dropdown['values'] = items
+
+    sheet_var.trace("w", update_item_list)
+    update_item_list()
+
+    # Threshold input
+    tk.Label(threshold_window, text="Set Threshold:").pack(pady=5)
+    threshold_var = tk.IntVar(value=10)
+    threshold_entry = ttk.Entry(threshold_window, textvariable=threshold_var)
+    threshold_entry.pack(pady=5)
+
+    # Save threshold button
+    def save_threshold():
+        sheet_name = sheet_var.get()
+        item_name = item_var.get()
+        threshold_value = threshold_var.get()
+
+        if not sheet_name or not item_name or threshold_value is None:
+            tk.messagebox.showerror("Error", "All fields are required.", parent=threshold_window)
+            return
+
+        if sheet_name in workbook.sheetnames:
+            sheet = workbook[sheet_name]
+            for row in sheet.iter_rows(min_row=2, values_only=True):
+                if row[0] == item_name:
+                    row_idx = row[0].row
+                    threshold_col_idx = sheet.max_column  # Assume last column is Threshold
+                    sheet.cell(row=row_idx, column=threshold_col_idx, value=threshold_value)
+                    workbook.save(workbook_path)
+                    tk.messagebox.showinfo("Success", f"Threshold for '{item_name}' set to {threshold_value}.", parent=threshold_window)
+                    break
+            else:
+                tk.messagebox.showerror("Error", f"Item '{item_name}' not found in {sheet_name}.", parent=threshold_window)
+
+    tk.Button(threshold_window, text="Save Threshold", command=save_threshold).pack(pady=10)
+
+
 # Use the generalized function for specific scripts
 def run_basement_4_2_inventory():
     run_inventory_script(
@@ -318,17 +381,25 @@ def open_san_return_form_with_tree(returns_tree):
     """
     form_window = ctk.CTkToplevel(root)
     form_window.title("SAN Return Form")
-    form_window.geometry("500x500")
+    form_window.geometry("500x550")
+
+    # Set a uniform appearance for the form
+    ctk.set_appearance_mode("dark")  # Options: "dark", "light", "system"
+    ctk.set_default_color_theme("blue")  # Options: "blue", "green", "dark-blue"
 
     # Title Label
     title_label = ctk.CTkLabel(
-        form_window, text="SAN Return Form", font=("Helvetica", 18, "bold")
+        form_window,
+        text="SAN Return Form",
+        font=("Helvetica", 20, "bold"),
     )
-    title_label.pack(pady=10)
+    title_label.pack(pady=20)
 
-    # Form Frame
-    form_frame = ctk.CTkFrame(form_window, corner_radius=10)
-    form_frame.pack(padx=20, pady=20, fill="both", expand=True)
+    # Frame for form fields
+    form_frame = ctk.CTkFrame(
+        form_window, corner_radius=10, fg_color="#2C2F33"
+    )  # Darker background
+    form_frame.pack(padx=20, pady=10, fill="both", expand=True)
 
     # Fields and Input
     fields = ["SAN", "Gen", "Returned By", "Returned To", "Notes", "Timestamp"]
@@ -336,34 +407,44 @@ def open_san_return_form_with_tree(returns_tree):
     gen_values = ["G5", "G6", "G7", "G8", "G9", "G10", "G11"]
 
     for idx, field in enumerate(fields):
-        label = ctk.CTkLabel(form_frame, text=field, font=("Helvetica", 14))
+        label = ctk.CTkLabel(
+            form_frame, text=field, font=("Helvetica", 14), anchor="w"
+        )
         label.grid(row=idx, column=0, padx=10, pady=10, sticky="e")
 
         if field == "Gen":
             # Dropdown for "Gen"
-            entries[field] = ttk.Combobox(
-                form_frame, values=gen_values, state="readonly", width=30
+            entries[field] = ctk.CTkComboBox(
+                form_frame, values=gen_values, width=250, corner_radius=10
             )
-            entries[field].current(0)
+            entries[field].set(gen_values[0])  # Default to the first value
         elif field == "Timestamp":
             # Prefill Timestamp
-            entries[field] = ctk.CTkEntry(form_frame, width=250)
+            entries[field] = ctk.CTkEntry(
+                form_frame,
+                width=250,
+                corner_radius=10,
+                placeholder_text="YYYY-MM-DD HH:MM:SS",
+            )
             entries[field].insert(0, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         else:
-            entries[field] = ctk.CTkEntry(form_frame, width=250)
+            entries[field] = ctk.CTkEntry(
+                form_frame, width=250, corner_radius=10, placeholder_text=f"Enter {field}"
+            )
 
         entries[field].grid(row=idx, column=1, padx=10, pady=10)
 
     # Buttons Frame
-    buttons_frame = ctk.CTkFrame(form_window, corner_radius=10)
+    buttons_frame = ctk.CTkFrame(form_window, fg_color="#23272A", corner_radius=10)
     buttons_frame.pack(pady=20)
 
     # Submit Button
     submit_button = ctk.CTkButton(
         buttons_frame,
         text="Submit",
-        font=("Helvetica", 14),
+        font=("Helvetica", 14, "bold"),
         width=120,
+        corner_radius=10,
         command=lambda: submit_san_return(
             entries["SAN"].get(),
             entries["Gen"].get(),
@@ -375,17 +456,19 @@ def open_san_return_form_with_tree(returns_tree):
             returns_tree,  # Pass Treeview reference
         ),
     )
-    submit_button.pack(side="left", padx=20)
+    submit_button.pack(side="left", padx=10)
 
     # Cancel Button
     cancel_button = ctk.CTkButton(
         buttons_frame,
         text="Cancel",
-        font=("Helvetica", 14),
+        font=("Helvetica", 14, "bold"),
         width=120,
+        corner_radius=10,
+        fg_color="red",
         command=form_window.destroy,
     )
-    cancel_button.pack(side="left", padx=20)
+    cancel_button.pack(side="left", padx=10)
 
 
 
@@ -547,6 +630,7 @@ inventory_menu.add_command(label="Build Room Inventory", command=run_build_room_
 inventory_menu.add_command(label="Darwin Inventory", command=run_darwin_inventory)
 inventory_menu.add_command(label="Combined Inventory", command=run_combined_inventory)
 inventory_menu.add_command(label="Save Plots", command=save_plots)
+inventory_menu.add_command(label="Check Restock Threshold", command=lambda: check_restock_threshold(10))
 
 # Create the main Options menu
 plots_menu = tk.Menu(menu_bar, tearoff=0)
@@ -580,6 +664,28 @@ def get_file_path():
 workbook_path = get_file_path()
 save_config(workbook_path)  # Save the path to the config file immediately after getting it
 workbook = load_workbook(workbook_path)
+
+def ensure_threshold_column():
+    """
+    Ensure each inventory sheet has a 'Threshold' column. Add it if missing.
+    """
+    try:
+        for sheet_name in ['4.2_Items', 'BR_Items', 'Darwin_Items']:
+            if sheet_name in workbook.sheetnames:
+                sheet = workbook[sheet_name]
+                max_col = sheet.max_column
+                header_row = [sheet.cell(row=1, column=col).value for col in range(1, max_col + 1)]
+
+                if 'Threshold' not in header_row:
+                    sheet.cell(row=1, column=max_col + 1, value='Threshold')
+                    for row in range(2, sheet.max_row + 1):
+                        sheet.cell(row=row, column=max_col + 1, value=10)  # Default threshold value
+                    workbook.save(workbook_path)
+                    logging.info(f"Added 'Threshold' column to {sheet_name}.")
+    except Exception as e:
+        logging.error(f"Error ensuring 'Threshold' column: {e}")
+        tk.messagebox.showerror("Error", f"Failed to add 'Threshold' column: {e}")
+
 
 all_sans_sheet = workbook['All_SANs']
 sheets = {
@@ -741,20 +847,6 @@ for col, (text, command) in enumerate(buttons):
     button_widgets.append(btn)
 
 
-# # Entry and control frame for "+" and "-" buttons
-# control_frame = ctk.CTkFrame(entry_frame)
-# control_frame.pack(side='left', padx=10, pady=3)
-
-# button_subtract = ctk.CTkButton(control_frame, text="-", command=lambda: update_count('subtract'), width=button_width, font=("Helvetica", 14), corner_radius=3)
-# button_subtract.pack(side='left', padx=3)
-
-# entry_value = tk.Entry(control_frame, font=("Helvetica", 14), justify='center', width=5, validate="key", validatecommand=vcmd)
-# entry_value.pack(side='left', padx=3)
-
-# button_add = ctk.CTkButton(control_frame, text="+", command=lambda: update_count('add'), width=button_width, font=("Helvetica", 14), corner_radius=3)
-# button_add.pack(side='left', padx=3)
-
-
 def update_treeview():
     tree.delete(*tree.get_children())
     workbook = load_workbook(workbook_path)
@@ -897,6 +989,49 @@ def update_count(operation):
         # **Add this line to refocus on the entry field after processing**
         entry_value.focus_set()
 
+def check_restock_threshold(threshold=10):
+    """
+    Display items that need restocking based on individual thresholds.
+    """
+    try:
+        low_stock_items = []
+
+        # Iterate through sheets to check against thresholds
+        for sheet_name in ['4.2_Items', 'BR_Items', 'Darwin_Items']:
+            if sheet_name in workbook.sheetnames:
+                sheet = workbook[sheet_name]
+                for row in sheet.iter_rows(min_row=2, values_only=True):
+                    item, _, new_count, item_threshold = row[:4]  # Adjust columns as necessary
+                    if new_count is not None and item_threshold is not None and new_count < item_threshold:
+                        low_stock_items.append((sheet_name, item, new_count, item_threshold))
+
+        # Display results
+        if low_stock_items:
+            restock_window = tk.Toplevel(root)
+            restock_window.title("Low Stock Alert")
+            restock_window.geometry("500x400")
+
+            tk.Label(restock_window, text="Items Below Threshold", font=("Helvetica", 14, "bold")).pack(pady=10)
+
+            columns = ("Sheet", "Item", "Stock", "Threshold")
+            restock_tree = ttk.Treeview(restock_window, columns=columns, show="headings", height=15)
+            for col in columns:
+                restock_tree.heading(col, text=col)
+                restock_tree.column(col, anchor='w', width=150 if col == "Item" else 100)
+
+            restock_tree.pack(expand=True, fill="both", padx=10, pady=10)
+
+            for sheet, item, count, item_threshold in low_stock_items:
+                restock_tree.insert("", "end", values=(sheet, item, count, item_threshold))
+
+            scrollbar = ttk.Scrollbar(restock_window, orient="vertical", command=restock_tree.yview)
+            scrollbar.pack(side="right", fill="y")
+            restock_tree.configure(yscrollcommand=scrollbar.set)
+        else:
+            tk.messagebox.showinfo("Info", "No items are below their thresholds.")
+    except Exception as e:
+        logging.error(f"Failed to check restock threshold: {e}")
+        tk.messagebox.showerror("Error", f"Failed to check restock threshold: {e}")
 
 
 # Treeview for items
